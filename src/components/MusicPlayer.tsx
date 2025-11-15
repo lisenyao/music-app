@@ -14,7 +14,8 @@ import {
   MoreHorizontal,
   Folder,
   Plus,
-  Upload
+  Upload,
+  HardDrive
 } from 'lucide-react';
 
 interface Song {
@@ -224,8 +225,8 @@ const MusicPlayer: React.FC = () => {
     setCurrentIndex(index);
   };
 
-  // 处理文件上传
-  const handleFileUpload = (files: FileList | null) => {
+  // 处理文件选择
+  const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newSongs: Song[] = [];
@@ -265,18 +266,18 @@ const MusicPlayer: React.FC = () => {
     }
   };
 
-  // 处理单个文件上传
-  const handleSingleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e.target.files);
+  // 处理单个文件选择
+  const handleSingleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e.target.files);
     // 重置input值以便下次选择相同文件
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // 处理文件夹上传
-  const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e.target.files);
+  // 处理文件夹选择
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e.target.files);
     // 重置input值
     if (folderInputRef.current) {
       folderInputRef.current.value = '';
@@ -314,7 +315,7 @@ const MusicPlayer: React.FC = () => {
       <input
         type="file"
         ref={fileInputRef}
-        onChange={handleSingleFileUpload}
+        onChange={handleSingleFileSelect}
         accept="audio/*"
         className="hidden"
         multiple
@@ -324,7 +325,7 @@ const MusicPlayer: React.FC = () => {
       <input
         type="file"
         ref={folderInputRef}
-        onChange={handleFolderUpload}
+        onChange={handleFolderSelect}
         accept="audio/*"
         className="hidden"
         multiple
@@ -542,7 +543,7 @@ const MusicPlayer: React.FC = () => {
                 {/* 上传提示 */}
                 {songs.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
-                    <Upload size={48} className="mx-auto mb-4 text-gray-600" />
+                    <HardDrive size={48} className="mx-auto mb-4 text-gray-600" />
                     <p className="mb-4">暂无音乐文件</p>
                     <div className="flex justify-center gap-2">
                       <button
@@ -550,16 +551,19 @@ const MusicPlayer: React.FC = () => {
                         className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
                       >
                         <Plus size={16} />
-                        添加音乐
+                        选择音乐文件
                       </button>
                       <button
                         onClick={triggerFolderSelect}
                         className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg flex items-center gap-2 transition-colors"
                       >
                         <Folder size={16} />
-                        添加文件夹
+                        选择音乐文件夹
                       </button>
                     </div>
+                    <p className="mt-4 text-sm text-gray-500">
+                      直接读取本地文件播放，无需上传
+                    </p>
                   </div>
                 )}
               </div>
