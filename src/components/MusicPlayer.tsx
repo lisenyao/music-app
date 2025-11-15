@@ -11,7 +11,10 @@ import {
   Repeat1,
   Music,
   Heart,
-  MoreHorizontal
+  MoreHorizontal,
+  Folder,
+  Plus,
+  Upload
 } from 'lucide-react';
 
 interface Song {
@@ -24,6 +27,7 @@ interface Song {
   genre: string;
   year: number;
   cover: string;
+  file?: File; // 用于存储本地文件对象
 }
 
 type RepeatMode = 'off' | 'one' | 'all';
@@ -40,9 +44,12 @@ const MusicPlayer: React.FC = () => {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [localFiles, setLocalFiles] = useState<File[]>([]); // 存储本地文件
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // 加载音乐数据
   useEffect(() => {
@@ -96,7 +103,13 @@ const MusicPlayer: React.FC = () => {
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      // 创建新的Promise来处理play()方法的异步特性
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.log("播放失败:", error);
+        });
+      }
     }
     setIsPlaying(!isPlaying);
   };
@@ -124,7 +137,12 @@ const MusicPlayer: React.FC = () => {
       // 单曲循环
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play();
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("播放失败:", error);
+          });
+        }
       }
       return;
     }
@@ -206,6 +224,79 @@ const MusicPlayer: React.FC = () => {
     setCurrentIndex(index);
   };
 
+  // 处理文件上传
+  const handleFileUpload = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const newSongs: Song[] = [];
+    const newFiles: File[] = [];
+
+    Array.from(files).forEach((file, index) => {
+      // 只处理音频文件
+      if (file.type.startsWith('audio/')) {
+        newFiles.push(file);
+        
+        const song: Song = {
+          id: Date.now() + index, // 生成唯一ID
+          title: file.name.replace(/\.[^/.]+$/, ""), // 移除扩展名
+          artist: "本地音乐",
+          album: "本地专辑",
+          duration: "0:00",
+          src: URL.createObjectURL(file),
+          genre: "未知",
+          year: new Date().getFullYear(),
+          cover: "",
+          file: file
+        };
+        
+        newSongs.push(song);
+      }
+    });
+
+    if (newSongs.length > 0) {
+      setSongs(prevSongs => [...prevSongs, ...newSongs]);
+      setLocalFiles(prevFiles => [...prevFiles, ...newFiles]);
+      
+      // 如果当前没有播放歌曲，则播放第一首新添加的歌曲
+      if (!currentSong) {
+        setCurrentSong(newSongs[0]);
+        setCurrentIndex(songs.length);
+      }
+    }
+  };
+
+  // 处理单个文件上传
+  const handleSingleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileUpload(e.target.files);
+    // 重置input值以便下次选择相同文件
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 处理文件夹上传
+  const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileUpload(e.target.files);
+    // 重置input值
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
+  };
+
+  // 触发文件选择
+  const triggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // 触发文件夹选择
+  const triggerFolderSelect = () => {
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+    }
+  };
+
   // 进度百分比
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -219,6 +310,29 @@ const MusicPlayer: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+      {/* 隐藏的文件输入元素 */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleSingleFileUpload}
+        accept="audio/*"
+        className="hidden"
+        multiple
+      />
+      
+      {/* 隐藏的文件夹输入元素 */}
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFolderUpload}
+        accept="audio/*"
+        className="hidden"
+        multiple
+        // @ts-ignore
+        webkitdirectory="true"
+        directory=""
+      />
+      
       <audio ref={audioRef} src={currentSong.src} preload="metadata" />
       
       {/* 主容器 */}
@@ -228,7 +342,7 @@ const MusicPlayer: React.FC = () => {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
               <Music className="text-purple-400" size={40} />
-              在线音乐播放器
+              音乐播放器
             </h1>
             <p className="text-gray-300">享受高品质音乐体验</p>
           </div>
@@ -364,10 +478,31 @@ const MusicPlayer: React.FC = () => {
             {/* 播放列表 */}
             <div className="lg:col-span-1">
               <div className="bg-black/30 backdrop-blur-md rounded-2xl p-6 border border-white/10 h-fit">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Music size={20} />
-                  播放列表
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Music size={20} />
+                    播放列表
+                  </h3>
+                  
+                  {/* 上传按钮组 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={triggerFileSelect}
+                      className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                      title="添加文件"
+                    >
+                      <Plus size={16} />
+                    </button>
+                    <button
+                      onClick={triggerFolderSelect}
+                      className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                      title="添加文件夹"
+                    >
+                      <Folder size={16} />
+                    </button>
+                  </div>
+                </div>
+                
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {songs.map((song, index) => (
                     <div
@@ -403,6 +538,30 @@ const MusicPlayer: React.FC = () => {
                     </div>
                   ))}
                 </div>
+                
+                {/* 上传提示 */}
+                {songs.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Upload size={48} className="mx-auto mb-4 text-gray-600" />
+                    <p className="mb-4">暂无音乐文件</p>
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={triggerFileSelect}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                      >
+                        <Plus size={16} />
+                        添加音乐
+                      </button>
+                      <button
+                        onClick={triggerFolderSelect}
+                        className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                      >
+                        <Folder size={16} />
+                        添加文件夹
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
